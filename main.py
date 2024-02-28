@@ -4,9 +4,11 @@ import copy
 # Press Shift+F10 to execute it or replace it with your code.
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
 class BoardState:
-    def __init__(self, cols=3, rows=3, board=[[0,0,0],[0,0,0],[0,0,0]]):
+    def __init__(self, cols=3, rows=3, depth=0, board=[[0,0,0],[0,0,0],[0,0,0]]):
         self.cols = cols
         self.rows = rows
+        self.depth = depth
+        self.h_value = 0
         #board contains the state of a tic-tac-toe board
         # -1 is -> x       1 is -> o
         #self.board = [[0] * cols] * rows <- bugged
@@ -43,9 +45,10 @@ class BoardState:
                 if (self.board[x][y] == 0):
                     temp = copy.deepcopy(self.board)
                     temp[x][y] = player
-                    new_boards.append(BoardState(board=copy.deepcopy(temp[:])))
-                y += 1
-            y = 0
+                    new_depth=self.depth+1
+                    new_boards.append(BoardState(board=copy.deepcopy(temp[:]), depth=new_depth))
+                y+=1
+            y=0
             x+=1
 
         return new_boards
@@ -116,6 +119,31 @@ def best_first_search(initial_board):
         current = open[0]
         current.isGoal()
 
+def a_star(start=[[0,0,0],[0,0,0],[0,0,0]]):
+    #open is sorted by hueristic value
+    open = [BoardState(board=start)]
+    closed = []
+    #players are [1,-1]
+    current_player = 1
+
+    while len(open)>0:
+        open.sort(reverse=True, key=lambda x: x.h_value)
+        currentItem = open.pop()
+        closed.append(currentItem)
+        currentChildren = currentItem.getChildren(player=current_player)
+        for item in currentChildren:
+            open.append(item)
+            #If goal board found, return success == 1
+            if(item.goalState() == True):
+                return [item, 1]
+        # change turn
+        current_player = (current_player * -1)
+    # no solution, return success==0
+    return [closed, 0]
+
+
+
+
 
 if __name__ == '__main__':
     board = BoardState()
@@ -134,3 +162,6 @@ if __name__ == '__main__':
     print("child_two boards")
     for board in children_two:
         print(board)
+
+    print("A* Search")
+    print(a_star())
