@@ -1,27 +1,20 @@
 # This is a sample Python script.
 import copy
+import numpy as np
 
 # Press Shift+F10 to execute it or replace it with your code.
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
 class BoardState:
-    def __init__(self, cols=3, rows=3, depth=0, board=[[0,0,0],[0,0,0],[0,0,0]]):
-        self.cols = cols
-        self.rows = rows
+    def __init__(self, depth=0, board=[[0,0,0],[0,0,0],[0,0,0]]):
+        self.board = board
+        self.cols = len(board)
+        self.rows = len(board[0])
         self.depth = depth
-        self.h_value = 0
+        self.magicValues = [[8, 1, 6], [3, 5, 7], [4, 9, 2]]
+        self.h_value = self.find_h()
         #board contains the state of a tic-tac-toe board
         # -1 is -> x       1 is -> o
         #self.board = [[0] * cols] * rows <- bugged
-        self.board = board
-        # #arbitary size board generator (unfinished)
-        # x = 0
-        # y = 0
-        # while(x<self.rows and y<self.cols):
-        #     #self.board[x][y] = 1
-        #     x+=1
-        #     y+=1
-        #hard code 3x3 magic number board, will add arbitary sizes later
-        self.magicValues = [[8,1,6],[3,5,7],[4,9,2]]
 
     def __repr__(self):
         return_str = ""
@@ -35,6 +28,74 @@ class BoardState:
         print()
         for row in self.magicValues:
             print(row)
+
+    # def find_hueristic(self):
+    #     arr = []
+    #     arr_two = []
+    #     count = 0
+    #     count_two = 0
+    #     for x in self.board:
+    #         for y in x:
+    #             if y==1:
+    #                 arr.append(self.magicValues[count][count_two])
+    #             elif y==-1:
+    #                 arr_two.append(self.magicValues[count][count_two])
+    #             count_two+=1
+    #         count+=1
+    #         count_two=0
+    #
+    #     arr.sort()
+    #     arr_two.sort()
+    #     arr_score = 0
+    #     for i in range(len(arr)):
+    #         a = arr[i]
+    #         start = i+1
+    #         end = len(arr)-1
+    #         while(start < end):
+    #             b = arr[start]
+    #             c = arr[end]
+    #             if(a + b + c == 15):
+    #                 arr_score += 100
+    #     return 0
+
+    def find_h(self, patternlength=2):
+        goal_state = self.goalState()
+        if(goal_state == 1 or goal_state == -1):
+            return 1000*goal_state
+
+        full_item_list = []
+
+        score = 0
+
+        #primary_diagnals = [self.board[i][i] for i in range(len(self.board))]
+        #secondary_diagnals = [self.board[i][len(self.board)-i-1] for i in range(len(self.board))]
+        np_array = np.array(self.board)
+        primary_diagnals = [np_array[::-1,:].diagonal(i) for i in range(-self.rows+1, self.cols)]
+        secondary_diagnals = [np.flip(np_array[::-1,:], 1).diagonal(i) for i in range(-self.rows+1, self.cols)]
+
+
+        #print("primary and secondary diags")
+        #print(primary_diagnals)
+        #print(secondary_diagnals)
+
+        for column_index in range(self.cols):
+            full_item_list.append(np_array[:,column_index])
+        for row_index in range(self.rows):
+            full_item_list.append(np_array[row_index,:])
+        full_item_list.extend(primary_diagnals)
+        full_item_list.extend(secondary_diagnals)
+
+
+        for sub_array in full_item_list:
+            if(len(sub_array)>1):
+                for element in range(len(sub_array)-1):
+                    if(sub_array[element] == sub_array[element+1]):
+                        score += (sub_array[element]*10)
+
+        #print("actual board:")
+        #print(self.board)
+        return score
+
 
     def getChildren(self, player=1):
         x=0
@@ -129,17 +190,20 @@ def a_star(start=[[0,0,0],[0,0,0],[0,0,0]]):
     while len(open)>0:
         open.sort(reverse=True, key=lambda x: x.h_value)
         currentItem = open.pop()
+        print("current player: ", current_player)
+        print(currentItem)
+        print()
         closed.append(currentItem)
         currentChildren = currentItem.getChildren(player=current_player)
         for item in currentChildren:
             open.append(item)
             #If goal board found, return success == 1
             if(item.goalState() == True):
-                return [item, 1]
+                return [item, True]
         # change turn
         current_player = (current_player * -1)
     # no solution, return success==0
-    return [closed, 0]
+    return [closed, False]
 
 
 
@@ -165,3 +229,12 @@ if __name__ == '__main__':
 
     print("A* Search")
     print(a_star())
+
+    print()
+    print("A* Search no solution")
+    print(a_star(start=[[0,1,-1],[1,-1,1],[-1,1,-1]]))
+
+    print("hueristic")
+    #board_three = BoardState(board=[[0, -1, -1],[1, 0, 1],[1, 0, 1]])
+    board_three = BoardState(board=[[0, 1, -1], [1, 0, 1], [1, 0, 1]])
+    print(board_three.find_h())
