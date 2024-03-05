@@ -1,17 +1,19 @@
 import copy
 import numpy as np
 
+
 class BoardState:
-    def __init__(self, depth=0, board=[[0,0,0],[0,0,0],[0,0,0]]):
+    def __init__(self, depth=0, board=[[0, 0, 0], [0, 0, 0], [0, 0, 0]]):
         self.board = board
         self.cols = len(board)
         self.rows = len(board[0])
         self.depth = depth
         self.magicValues = [[8, 1, 6], [3, 5, 7], [4, 9, 2]]
+        self.tile_worth = [[2, 1, 2], [2, 5, 2], [2, 1, 2]]
         self.h_value = self.find_h()
-        #board contains the state of a tic-tac-toe board
+        # board contains the state of a tic-tac-toe board
         # -1 is -> x       1 is -> o
-        #self.board = [[0] * cols] * rows <- bugged
+        # self.board = [[0] * cols] * rows <- bugged
 
     def __repr__(self):
         return_str = ""
@@ -27,30 +29,36 @@ class BoardState:
         for row in self.magicValues:
             print(row)
 
-    def find_h(self, patternlength=2):
-        goal_state = self.goal_state()
-        if(goal_state == 1 or goal_state == -1):
+    def find_h(self):
+        goal_state = self.is_goal_state()
+        if goal_state == 1 or goal_state == -1:
             return 1000*goal_state
 
         full_item_list = []  # list of every direction's elements
         score = 0
 
         np_array = np.array(self.board)
-        primary_diagnals = [np_array[::-1,:].diagonal(i) for i in range(-self.rows+1, self.cols)]
-        secondary_diagnals = [np.flip(np_array[::-1,:], 1).diagonal(i) for i in range(-self.rows+1, self.cols)]
+        primary_diagonals = [np_array[::-1,:].diagonal(i) for i in range(-self.rows+1, self.cols)]
+        secondary_diagonals = [np.flip(np_array[::-1,:], 1).diagonal(i) for i in range(-self.rows+1, self.cols)]
 
         for column_index in range(self.cols):
             full_item_list.append(np_array[:,column_index])
         for row_index in range(self.rows):
             full_item_list.append(np_array[row_index,:])
-        full_item_list.extend(primary_diagnals)
-        full_item_list.extend(secondary_diagnals)
+        full_item_list.extend(primary_diagonals)
+        full_item_list.extend(secondary_diagonals)
 
         for sub_array in full_item_list:
             if len(sub_array) > 1:
                 for element in range(len(sub_array)-1):
                     if sub_array[element] == sub_array[element+1]:
                         score += (sub_array[element]*10)
+
+        for row in range(self.rows):
+            for col in range(self.cols):
+                if self.board[row][col] != 0:
+                    score += self.tile_worth[row][col]
+
         return score
 
     def get_children(self, player=1):
@@ -69,7 +77,7 @@ class BoardState:
             x += 1
         return new_boards
 
-    def goal_state(self):
+    def is_goal_state(self):
         x = 0
         y = 0
 
@@ -90,7 +98,7 @@ class BoardState:
                 return -1
             x += 1
 
-        # check columns (can merge with previos loop)
+        # check columns (can merge with previous loop)
         x = 0
         y = 0
         while x < self.rows:
@@ -122,25 +130,29 @@ class BoardState:
         # tie result
         return 0
 
-def a_star(start=[[0,0,0],[0,0,0],[0,0,0]]):
+#search for any solution
+def a_star(start=[[0, 0, 0],[0, 0, 0],[0, 0, 0]]):
     # open is sorted by hueristic value
     open = [BoardState(board=start)]
     closed = []
-    # players are [1,-1]
+    # players are [1=x,-1=o]
     current_player = 1
 
+    # while boardstates are on open, search for goal.
     while len(open)>0:
-        open.sort(reverse=True, key=lambda x: x.h_value)
-        current_item = open.pop()
+        #open.sort(reverse=True, key=lambda x: x.h_value)
+        current_item = open.pop(open.index(min(open, key=lambda x: x.h_value)))
+        #current_item = open.pop(0)
         print("current player: ", current_player)
         print(current_item)
         print()
+
         closed.append(current_item)
-        currentChildren = current_item.get_children(player=current_player)
-        for item in currentChildren:
-            open.append(item)
-            #If goal board found, return success == 1
-            if(item.goal_state() == True):
+        current_children = current_item.get_children(player=current_player)
+        for item in current_children:
+            open.insert(0, item)
+            # If goal board found, return success == 1
+            if item.is_goal_state():
                 return [item, True, current_player*-1]
         # change turn
         current_player = (current_player * -1)
@@ -148,6 +160,40 @@ def a_star(start=[[0,0,0],[0,0,0],[0,0,0]]):
     return [closed, False]
 
 
+#two player interactive solution - depth limited minimax algoritm
+# def min_max(board_given, depth, maximizing_player, tracking_depth):
+#     if depth == 0 or board_given.is_goal_state():
+#         return board_given
+#     if maximizing_player:
+#         value = board_given
+#         for child in board_given.get_children(player=1):
+#             if child.is_goal_state():
+#                 minval = min_max(child, depth-1, False, tracking_depth=tracking_depth+1)
+#                 value = max(value, minval, key=lambda x: x.h_value)
+#                 val = value
+#         return value
+#     else:# (* minimizing player *)
+#         value = board_given
+#         for child in board_given.get_children(player=-1):
+#             value = min(value, min_max(child, depth-1, True, tracking_depth=tracking_depth+1), key=lambda x: x.h_value)
+#         return value
+def min_max(board_given, depth, maximizing_player, tracking_depth=0):
+    if board_given.is_goal_state() or depth <= 0:
+        return board_given
+    best_item = board_given
+    if maximizing_player:
+        children_list = board_given.get_children(player=1)
+        #for item in children_list:
+            # if compare_item is None:
+            #     compare_item = board_given
+        best_item = max(children_list, key=lambda x: x.h_value)
+        compare_item = min_max(best_item, depth - 1, False)
+    else:
+        children_list = board_given.get_children(player=-1)
+        #for item in children_list:
+        best_item = min(children_list, key=lambda x: x.h_value)
+        compare_item = min_max(best_item, depth - 1, True)
+    return compare_item
 
 
 
@@ -156,7 +202,7 @@ if __name__ == '__main__':
     print("current board")
     board.print_board()
     print("goalState")
-    print(board.goal_state())
+    print(board.is_goal_state())
     children = (board.get_children(1))
     print("child boards")
     for board in children:
@@ -179,3 +225,11 @@ if __name__ == '__main__':
     print("hueristic")
     board_three = BoardState(board=[[0, 1, -1], [1, 0, 1], [1, 0, 1]])
     print(board_three.find_h())
+    min_max_result = min_max(BoardState(board=[[0, 0, 0], [0, 0, 0], [0, 0, 0]]), 1000, True, 0)
+    print("min_max")
+    print(min_max_result)
+
+    min_max_result = min_max(BoardState(board=[[1, 0, 0], [0, -1, 0], [0, 0, 0]]), 1000, True, 0)
+    print("min_max 2nd test")
+    print(min_max_result)
+    #print(min_max_result.h_value)
