@@ -15,8 +15,9 @@ class BoardState:
         self.cols = len(board)
         self.rows = len(board[0])
         self.depth = depth
-        self.magicValues = [[8, 1, 6], [3, 5, 7], [4, 9, 2]]
-        self.tile_worth = [[2, 1, 2], [2, 5, 2], [2, 1, 2]]
+        # TODO: generate magic numbers based on board size
+        self.magicValues = [[8, 1, 6], [3, 5, 7], [4, 9, 2]]  # Uses Magic Squares to check goal-state
+        self.tile_worth = [[2, 1, 2], [2, 5, 2], [2, 1, 2]]  # Associated 'worth' of each tile for heuristics
         self.h_value = self.find_h()
 
     def __repr__(self):
@@ -33,6 +34,7 @@ class BoardState:
         for row in self.magicValues:
             print(row)
 
+    # Heuristic function to estimate distance of board to goal-state
     def find_h(self):
         goal_state = self.is_goal_state()
         if goal_state == 1 or goal_state == -1:
@@ -41,10 +43,10 @@ class BoardState:
         full_item_list = []  # list of every direction's elements
         score = 0
 
-        np_array = np.array(self.board)
+        # Fill 'full_item_list' with lists of all rows, columns, and diagonals.
+        np_array = np.array(self.board) # Using numpy to get diagonals from self.board 2d array
         primary_diagonals = [np_array[::-1,:].diagonal(i) for i in range(-self.rows+1, self.cols)]
         secondary_diagonals = [np.flip(np_array[::-1,:], 1).diagonal(i) for i in range(-self.rows+1, self.cols)]
-
         for column_index in range(self.cols):
             full_item_list.append(np_array[:,column_index])
         for row_index in range(self.rows):
@@ -52,12 +54,14 @@ class BoardState:
         full_item_list.extend(primary_diagonals)
         full_item_list.extend(secondary_diagonals)
 
+        # Calculate score from rows, columns, and diagonals contained within full_item_list
         for sub_array in full_item_list:
             if len(sub_array) > 1:
                 for element in range(len(sub_array)-1):
                     if sub_array[element] == sub_array[element+1]:
                         score += (sub_array[element]*10)
 
+        # Give score to heuristic based on how 'desirable' a tile is according to self.tile_worth
         for row in range(self.rows):
             for col in range(self.cols):
                 if self.board[row][col] != 0:
@@ -69,7 +73,7 @@ class BoardState:
     def get_children(self, player=1):
         x = 0
         y = 0
-        new_boards = []
+        new_boards = []  # fill with all possible child boards
         while x < self.rows:
             while y < self.cols:
                 if self.board[x][y] == 0:
@@ -136,7 +140,7 @@ class BoardState:
         # tie result
         return 0
 
-# search for any board solution
+# Search for any board solution
 def a_star(start=[[0, 0, 0],[0, 0, 0],[0, 0, 0]]):
     # open is sorted by hueristic value
     open = [BoardState(board=start)]
